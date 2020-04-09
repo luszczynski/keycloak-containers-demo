@@ -2,13 +2,11 @@
 
 This project contains a DIY deep dive into Keycloak.
 
-The steps included here requires Docker (or Podman). It should also be possible to replicate the steps without Docker by
-adapting the steps accordingly.
-
+The steps included here requires Docker (or Podman). It should also be possible to replicate the steps without Docker by adapting the steps accordingly.
 
 ## Start containers
 
-### Create a user defined network
+Create a user defined network
 
 To make it easy to connect Keycloak to LDAP and the mail server create a user defined network:
 
@@ -23,13 +21,29 @@ First, build the custom providers and themes with:
     mvn clean install
 
 Then build the image with:
-    
+
     docker build -t demo-keycloak -f keycloak/Dockerfile .
 
 Finally run it with:
 
     docker run --name demo-keycloak -e KEYCLOAK_USER=admin -e KEYCLOAK_PASSWORD=admin \
         -p 8080:8080 --net demo-network demo-keycloak
+
+### Start RH SSO
+
+Alternatively you can run Red Hat SSO.
+
+Authenticate to registry.redhat.io
+
+    docker login registry.redhat.io
+
+Now, pull the SSO image
+
+    docker pull registry.redhat.io/rh-sso-7/sso74-openshift-rhel8
+
+Run RH SSO
+
+    docker run --rm --name demo-rhsso -e SSO_ADMIN_USERNAME=admin -e SSO_ADMIN_PASSWORD=admin -p 8080:8080 --net demo-network registry.redhat.io/rh-sso-7/sso74-openshift-rhel8
 
 ### Start LDAP server
 
@@ -38,19 +52,18 @@ For the LDAP part of the demo we need an LDAP server running.
 First build the image with:
 
     docker build -t demo-ldap ldap
-    
+
 Then run it with:
 
-    docker run --name demo-ldap --net demo-network demo-ldap
-    
+    docker run --rm --name demo-ldap --net demo-network demo-ldap
+
 ### Start mail server
 
-In order to allow Keycloak to send emails we need to configure an SMTP server. MailHog provides an excellent email
-server that can used for testing.
+In order to allow Keycloak to send emails we need to configure an SMTP server. MailHog provides an excellent email server that can used for testing.
 
 Start the mail server with:
 
-    docker run -d -p 8025:8025 --name demo-mail --net demo-network mailhog/mailhog
+    docker run --rm -p 8025:8025 --name demo-mail --net demo-network mailhog/mailhog
     
 ### Start JS Console application
 
@@ -62,9 +75,7 @@ First build the image with:
     
 Then run it with:
 
-    docker run --name demo-js-console -p 8000:80 demo-js-console
-
-
+    docker run --rm --name demo-js-console -p 8000:80 demo-js-console
 
 ## Creating the realm
 
@@ -103,6 +114,7 @@ Now switch back to the `demo` realm, then click on `Realm Settings` then `Email`
 Fill in the following values:
 
 * Host: `demo-mail`
+* Port: `1025`
 * From: `keycloak@localhost`
 
 Click `Save` and `Test connection`. Open your http://localhost:8025 and check that you have
@@ -256,6 +268,7 @@ Fill in the following values:
 
 * Edit Mode: `WRITABLE`
 * Vendor: `other`
+* UUID LDAP attribute: `entryUUID`
 * Connection URL: `ldap://demo-ldap:389`
 * Users DN: `ou=People,dc=example,dc=org`
 * Bind DN: `cn=admin,dc=example,dc=org`
